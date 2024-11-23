@@ -1,16 +1,17 @@
-from flask import Flask, request, jsonify, render_template
-import os
+from flask import Flask, request, jsonify, render_template, url_for
 from azure.cognitiveservices.vision.computervision import ComputerVisionClient
-from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes, VisualFeatureTypes
+from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes, OperationStatusCodes
 from msrest.authentication import CognitiveServicesCredentials
 from PIL import Image
-import io
-import base64
-from dotenv import load_dotenv
-import time
-import json
+import os
 from datetime import datetime
+import base64
+import io
+from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
 import logging
+import json
+import time  # Add time module for retry logic
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -20,26 +21,76 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Azure Configuration
-endpoint = os.getenv('AZURE_ENDPOINT')
-subscription_key = os.getenv('AZURE_KEY')
+# Azure credentials
+ENDPOINT = os.getenv('AZURE_ENDPOINT')
+KEY = os.getenv('AZURE_KEY')
 
-# Initialize the Computer Vision client
+# Initialize Azure client
 computervision_client = ComputerVisionClient(
-    endpoint,
-    CognitiveServicesCredentials(subscription_key)
-)
+    ENDPOINT, CognitiveServicesCredentials(KEY))
 
-# Create history directory if it doesn't exist
-HISTORY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'history')
-if not os.path.exists(HISTORY_DIR):
-    os.makedirs(HISTORY_DIR)
-    logger.info(f"Created history directory at {HISTORY_DIR}")
+# Color translations
+color_translations = {
+    'fr': {
+        'black': 'noir',
+        'white': 'blanc',
+        'red': 'rouge',
+        'blue': 'bleu',
+        'green': 'vert',
+        'yellow': 'jaune',
+        'purple': 'violet',
+        'orange': 'orange',
+        'gray': 'gris',
+        'brown': 'marron',
+        'pink': 'rose',
+        'gold': 'or',
+        'silver': 'argent',
+        'beige': 'beige',
+        'navy': 'bleu marine',
+        'teal': 'bleu sarcelle'
+    },
+    'ar': {
+        'black': 'أسود',
+        'white': 'أبيض',
+        'red': 'أحمر',
+        'blue': 'أزرق',
+        'green': 'أخضر',
+        'yellow': 'أصفر',
+        'purple': 'بنفسجي',
+        'orange': 'برتقالي',
+        'gray': 'رمادي',
+        'brown': 'بني',
+        'pink': 'وردي',
+        'gold': 'ذهبي',
+        'silver': 'فضي',
+        'beige': 'بيج',
+        'navy': 'كحلي',
+        'teal': 'أزرق مخضر'
+    }
+}
 
-def save_to_history(image_data, results, mode):
+def translate_text(text, target_lang):
+    if target_lang == 'en':
+        return text
+    try:
+        translator = GoogleTranslator(source='en', target=target_lang)
+        return translator.translate(text)
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return text
+
+def translate_color(color, target_lang):
+    if target_lang == 'en':
+        return color
+    try:
+        return color_translations[target_lang].get(color.lower(), color)
+    except:
+        return color
+
+def save_to_history(image_data, results, mode, language):
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        history_file = os.path.join(HISTORY_DIR, f'analysis_{timestamp}.json')
+        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
         
         # Clean up base64 image data
         if ',' in image_data:
@@ -48,60 +99,19 @@ def save_to_history(image_data, results, mode):
         history_data = {
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'mode': mode,
+            'language': language,
             'image': image_data,
             'results': results
         }
         
-        with open(history_file, 'w') as f:
+        with open(history_file, 'a') as f:
             json.dump(history_data, f)
+            f.write('\n')
         logger.info(f"Successfully saved history to {history_file}")
         return True
     except Exception as e:
         logger.error(f"Error saving history: {str(e)}")
         return False
-
-def get_history(limit=10):
-    try:
-        if not os.path.exists(HISTORY_DIR):
-            logger.warning("History directory does not exist")
-            return []
-            
-        history_files = sorted(
-            [f for f in os.listdir(HISTORY_DIR) if f.startswith('analysis_')],
-            reverse=True
-        )[:limit]
-        
-        history = []
-        for file in history_files:
-            try:
-                with open(os.path.join(HISTORY_DIR, file), 'r') as f:
-                    history.append(json.load(f))
-                logger.debug(f"Loaded history file: {file}")
-            except Exception as e:
-                logger.error(f"Error loading history file {file}: {str(e)}")
-                continue
-        
-        return history
-    except Exception as e:
-        logger.error(f"Error getting history: {str(e)}")
-        return []
-
-def process_image_data(image_data):
-    try:
-        # Remove the data URL prefix if present
-        if ',' in image_data:
-            image_data = image_data.split(',')[1]
-        
-        # Decode base64 string to bytes
-        image_bytes = base64.b64decode(image_data)
-        
-        # Create a BytesIO object
-        image_stream = io.BytesIO(image_bytes)
-        logger.debug("Successfully processed image data")
-        return image_stream
-    except Exception as e:
-        logger.error(f"Error processing image data: {str(e)}")
-        raise
 
 @app.route('/')
 def home():
@@ -110,17 +120,15 @@ def home():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
-        # Get image data and mode from request
-        image_data = request.form.get('image')
-        mode = request.form.get('mode', 'image')  # Default to image mode
-        
-        if not image_data:
-            logger.warning("No image data provided")
-            return jsonify({'success': False, 'error': 'No image provided'})
+        data = request.get_json()
+        image_data = data.get('image').split(',')[1]
+        mode = data.get('mode', 'image')
+        language = data.get('language', 'en')
 
         # Process image data
-        image_stream = process_image_data(image_data)
-        
+        image_bytes = base64.b64decode(image_data)
+        image_stream = io.BytesIO(image_bytes)
+
         if mode == 'image':
             # Analyze image for objects and description
             features = [
@@ -129,63 +137,114 @@ def analyze():
                 VisualFeatureTypes.color
             ]
             
-            response = computervision_client.analyze_image_in_stream(
-                image_stream,
-                visual_features=features
-            )
+            # Add retry logic for better reliability
+            max_retries = 3
+            retry_delay = 1  # seconds
+            
+            for attempt in range(max_retries):
+                try:
+                    response = computervision_client.analyze_image_in_stream(
+                        image_stream,
+                        visual_features=features
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    logger.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                    time.sleep(retry_delay)
+                    image_stream.seek(0)  # Reset stream position
 
             # Extract results
             results = {
                 'success': True,
-                'description': response.description.captions[0].text if response.description.captions else 'No description available',
+                'description': translate_text(response.description.captions[0].text if response.description.captions else 'No description available', language),
                 'objects': [
                     {
-                        'name': obj.object_property,
+                        'name': translate_text(obj.object_property, language),
                         'confidence': obj.confidence
                     } for obj in response.objects
                 ],
                 'colors': {
-                    'dominant_colors': response.color.dominant_colors,
-                    'accent_color': response.color.accent_color,
+                    'dominant_colors': [translate_color(color, language) for color in response.color.dominant_colors],
+                    'accent_color': translate_color(response.color.accent_color, language),
                     'is_bw': response.color.is_bw_img
                 }
             }
 
         else:  # Text detection mode
-            # First start the OCR operation
-            response = computervision_client.read_in_stream(
-                image_stream,
-                raw=True
-            )
+            logger.info("Starting text detection mode")
+            # Add retry logic for OCR
+            max_retries = 3
+            retry_delay = 1  # seconds
+            
+            for attempt in range(max_retries):
+                try:
+                    response = computervision_client.read_in_stream(
+                        image_stream,
+                        raw=True
+                    )
+                    logger.info("Successfully initiated text detection")
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        logger.error(f"Failed to initiate text detection after {max_retries} attempts: {str(e)}")
+                        raise
+                    logger.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                    time.sleep(retry_delay)
+                    image_stream.seek(0)  # Reset stream position
 
             # Get the operation location from the response headers
             operation_location = response.headers["Operation-Location"]
             operation_id = operation_location.split('/')[-1]
+            logger.info(f"Got operation ID: {operation_id}")
 
-            # Wait for the operation to complete
+            # Wait for the operation to complete with timeout
+            timeout = 30  # seconds
+            start_time = time.time()
+            
             while True:
                 read_result = computervision_client.get_read_result(operation_id)
+                logger.info(f"Operation status: {read_result.status}")
+                
                 if read_result.status not in ['notStarted', 'running']:
                     break
+                if time.time() - start_time > timeout:
+                    logger.error("OCR operation timed out")
+                    raise TimeoutError("OCR operation timed out")
                 time.sleep(1)
 
             # Extract text results
             text_results = []
             if read_result.status == OperationStatusCodes.succeeded:
+                logger.info("Text detection succeeded")
                 for text_result in read_result.analyze_result.read_results:
                     for line in text_result.lines:
+                        # Translate the detected text if language is not English
+                        detected_text = line.text
+                        if language != 'en':
+                            try:
+                                detected_text = translate_text(line.text, language)
+                            except Exception as e:
+                                logger.error(f"Translation error: {str(e)}")
+                                # Continue with original text if translation fails
+                                pass
+                        
                         text_results.append({
-                            'text': line.text,
+                            'text': detected_text,
                             'confidence': line.confidence if hasattr(line, 'confidence') else 1.0
                         })
+                        logger.info(f"Detected text: {detected_text} (confidence: {line.confidence if hasattr(line, 'confidence') else 1.0})")
+            else:
+                logger.warning(f"Text detection failed with status: {read_result.status}")
 
             results = {
                 'success': True,
-                'text_results': text_results
+                'text_results': text_results if text_results else []
             }
 
         # Save to history
-        if not save_to_history(image_data, results, mode):
+        if not save_to_history(image_data, results, mode, language):
             logger.warning("Failed to save to history")
         
         return jsonify(results)
@@ -197,9 +256,15 @@ def analyze():
 @app.route('/history', methods=['GET'])
 def history():
     try:
-        history_data = get_history()
-        logger.info(f"Retrieved {len(history_data)} history items")
-        return jsonify({'success': True, 'history': history_data})
+        language = request.args.get('language', 'en')
+        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
+        if not os.path.exists(history_file):
+            return jsonify([])
+            
+        with open(history_file, 'r') as f:
+            history = [json.loads(line.strip()) for line in f.readlines()]
+        return jsonify(history)
+
     except Exception as e:
         logger.error(f"Error in history route: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
@@ -207,15 +272,16 @@ def history():
 @app.route('/clear-history', methods=['POST'])
 def clear_history():
     try:
-        if os.path.exists(HISTORY_DIR):
-            for file in os.listdir(HISTORY_DIR):
-                if file.startswith('analysis_'):
-                    os.remove(os.path.join(HISTORY_DIR, file))
-            logger.info("Successfully cleared history")
+        language = request.args.get('language', 'en')
+        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
+        if os.path.exists(history_file):
+            os.remove(history_file)
         return jsonify({'success': True, 'message': 'History cleared successfully'})
+
     except Exception as e:
         logger.error(f"Error clearing history: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    # Use 0.0.0.0 to allow external connections
+    app.run(host='0.0.0.0', port=8000)

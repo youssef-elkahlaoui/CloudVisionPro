@@ -1,6 +1,6 @@
 # Azure Vision Web Application
 
-A modern web application that leverages Azure Computer Vision API for advanced image analysis and text detection. This application provides an intuitive interface for analyzing images and extracting text using Azure's powerful AI capabilities.
+A modern web application that leverages Azure Computer Vision API for advanced image analysis and text detection. This application provides an intuitive interface for analyzing images and extracting text using Azure's powerful AI capabilities, with support for multiple languages and themes.
 
 ## Features
 
@@ -16,7 +16,24 @@ A modern web application that leverages Azure Computer Vision API for advanced i
 - Support for multiple languages
 - Clear text results display
 
-### 3. History Feature
+### 3. Multilingual Support
+- Interface available in:
+  - English (default)
+  - French
+  - Arabic
+- Full translation of:
+  - UI elements
+  - Analysis results
+  - Color names
+- RTL support for Arabic
+
+### 4. Theme Support
+- Light and dark mode themes
+- Persistent theme selection
+- Smooth theme transitions
+- Automatic theme preference saving
+
+### 5. History Feature
 - Saves all analysis results
 - View past analyses with timestamps
 - Includes original images and results
@@ -73,6 +90,17 @@ http://localhost:8080
 3. Click "Detect Text"
 4. View extracted text with confidence scores
 
+### Language Selection
+1. Use the language toggle in the top-left corner
+2. Choose between English, French, or Arabic
+3. UI and results will update automatically
+4. Language preference is saved for future visits
+
+### Theme Selection
+1. Click the theme toggle in the top-right corner
+2. Switch between light and dark modes
+3. Theme preference is saved for future visits
+
 ### History
 1. Click the "History" tab to view past analyses
 2. Each history card shows:
@@ -88,7 +116,7 @@ http://localhost:8080
 azure-vision-app/
 ├── app.py              # Main Flask application
 ├── static/
-│   └── style.css      # CSS styles
+│   └── style.css      # CSS styles with theme support
 ├── templates/
 │   └── index.html     # Main HTML template
 ├── history/           # Analysis history storage
@@ -101,8 +129,8 @@ azure-vision-app/
 - azure-cognitiveservices-vision-computervision
 - python-dotenv
 - Pillow
-- base64
-- datetime
+- deep-translator
+- msrest
 
 ## Error Handling
 
@@ -111,6 +139,7 @@ The application includes comprehensive error handling for:
 - API failures
 - Network issues
 - History management errors
+- Translation errors
 
 ## Security Considerations
 
@@ -136,3 +165,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Azure Computer Vision API
 - Flask Framework
 - Font Awesome Icons
+- Google Translator API

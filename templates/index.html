@@ -1,372 +1,453 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure Vision Analysis</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Azure Vision Analyzer</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <button class="theme-toggle" aria-label="Toggle dark mode">
+        <i class="fas fa-moon"></i>
+    </button>
+    
+    <div class="language-toggle">
+        <i class="fas fa-globe"></i>
+        <select id="language-select">
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+            <option value="ar">العربية</option>
+        </select>
+    </div>
+
     <div class="container">
-        <header>
-            <h1><i class="fas fa-eye"></i> Azure Vision Analysis</h1>
+        <header class="header">
+            <h1>Azure Vision Analyzer</h1>
+            <p>Advanced image analysis powered by Azure Computer Vision</p>
         </header>
 
-        <div class="mode-selection">
+        <div class="mode-selector">
             <button class="mode-btn active" data-mode="image">
-                <i class="fas fa-image"></i>
-                Image Recognition
+                <i class="fas fa-image"></i> Image Analysis
             </button>
             <button class="mode-btn" data-mode="text">
-                <i class="fas fa-font"></i>
-                Text Detection (OCR)
-            </button>
-            <button class="mode-btn" data-mode="history">
-                <i class="fas fa-history"></i>
-                History
+                <i class="fas fa-font"></i> Text Detection
             </button>
         </div>
 
-        <div class="main-content">
-            <!-- Upload Section -->
-            <div class="upload-section" id="uploadSection">
-                <div class="upload-area" id="dropZone">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag & Drop an image or Click to Upload</p>
-                    <input type="file" id="fileInput" accept="image/*" hidden>
-                </div>
-                <div class="preview-container">
-                    <img id="imagePreview" src="" alt="" style="display: none;">
-                </div>
-                <button id="analyzeBtn" class="analyze-btn" disabled>
-                    <i class="fas fa-magic"></i>
-                    <span>Analyze Image</span>
-                </button>
+        <section class="upload-section">
+            <div class="upload-area" id="dropZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag and drop an image here or click to select</p>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
+            <img id="imagePreview" class="preview-image" style="display: none;">
+            <button id="analyzeBtn" class="analyze-btn" disabled>
+                <i class="fas fa-magic"></i> Analyze Image
+            </button>
+        </section>
 
-            <div class="loading-overlay">
-                <div class="loader"></div>
-                <p>Analyzing image...</p>
-            </div>
-
-            <!-- Image Recognition Results -->
-            <div class="results-section image-results" style="display: none;">
-                <h2>Image Analysis Results</h2>
-                <div class="results-grid">
-                    <div class="result-card">
-                        <i class="fas fa-align-left"></i>
-                        <h3>Description</h3>
-                        <p id="description"></p>
-                    </div>
-                    <div class="result-card">
-                        <i class="fas fa-tags"></i>
-                        <h3>Objects Detected</h3>
-                        <div id="objects" class="objects-container"></div>
-                    </div>
-                    <div class="result-card">
-                        <i class="fas fa-palette"></i>
-                        <h3>Colors</h3>
-                        <div id="colors" class="colors-container"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- OCR Results -->
-            <div class="results-section text-results" style="display: none;">
-                <h2>Text Detection Results</h2>
-                <div class="ocr-results">
-                    <div class="result-card full-width">
-                        <i class="fas fa-font"></i>
-                        <h3>Detected Text</h3>
-                        <div id="textResults" class="text-container"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- History Section -->
-            <div class="history-section" style="display: none;">
-                <div class="history-header">
-                    <h2>Analysis History</h2>
-                    <button id="clearHistoryBtn" class="clear-btn">
-                        <i class="fas fa-trash"></i>
-                        Clear History
-                    </button>
-                </div>
-                <div class="history-grid" id="historyGrid">
-                    <!-- History items will be added here -->
-                </div>
-            </div>
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Analyzing image...</p>
         </div>
+
+        <div class="error-message"></div>
+
+        <section class="results-section" style="display: none;">
+            <h2>Analysis Results</h2>
+            <div id="resultsContainer"></div>
+        </section>
+
+        <section class="history-section" id="historyContainer">
+            <!-- History items will be dynamically added here -->
+        </section>
+
+        <button id="clearHistoryBtn" class="clear-history-btn">
+            <i class="fas fa-trash"></i> Clear History
+        </button>
     </div>
 
     <script>
         let currentMode = 'image';
-        const modeBtns = document.querySelectorAll('.mode-btn');
-        const imageResults = document.querySelector('.image-results');
-        const textResults = document.querySelector('.text-results');
-        const historySection = document.querySelector('.history-section');
-        const uploadSection = document.getElementById('uploadSection');
-
-        // Mode Selection
-        modeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                modeBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMode = btn.dataset.mode;
-                
-                // Reset results and show/hide sections
-                imageResults.style.display = 'none';
-                textResults.style.display = 'none';
-                historySection.style.display = 'none';
-                uploadSection.style.display = 'block';
-
-                if (currentMode === 'history') {
-                    historySection.style.display = 'block';
-                    uploadSection.style.display = 'none';
-                    loadHistory();
-                } else {
-                    document.getElementById('analyzeBtn').textContent = 
-                        currentMode === 'image' ? 'Analyze Image' : 'Detect Text';
-                }
-            });
-        });
-
-        // History Functions
-        async function loadHistory() {
-            try {
-                const response = await fetch('/history', {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const historyGrid = document.getElementById('historyGrid');
-                historyGrid.innerHTML = '';
-                
-                if (!data.success) {
-                    historyGrid.innerHTML = '<div class="error-message">Failed to load history</div>';
-                    return;
-                }
-
-                if (!data.history || data.history.length === 0) {
-                    historyGrid.innerHTML = '<div class="no-history">No analysis history available</div>';
-                    return;
-                }
-                
-                data.history.forEach(item => {
-                    try {
-                        const historyItem = document.createElement('div');
-                        historyItem.className = 'history-item';
-                        
-                        let resultsSummary = '';
-                        if (item.mode === 'image') {
-                            resultsSummary = `
-                                <p><strong>Description:</strong> ${item.results.description}</p>
-                                <p><strong>Objects:</strong> ${item.results.objects.map(obj => obj.name).join(', ')}</p>
-                            `;
-                        } else {
-                            resultsSummary = `
-                                <p><strong>Detected Text:</strong></p>
-                                <p>${item.results.text_results.map(text => text.text).join(' ')}</p>
-                            `;
-                        }
-                        
-                        historyItem.innerHTML = `
-                            <div class="history-image">
-                                <img src="data:image/jpeg;base64,${item.image}" 
-                                     alt="Analyzed image" 
-                                     onerror="this.onerror=null; this.src='data:image/png;base64,${item.image}'; this.onerror=function(){this.style.display='none';}">
-                            </div>
-                            <div class="history-details">
-                                <div class="history-header">
-                                    <span class="history-mode">
-                                        <i class="fas fa-${item.mode === 'image' ? 'image' : 'font'}"></i>
-                                        ${item.mode === 'image' ? 'Image Recognition' : 'Text Detection'}
-                                    </span>
-                                    <span class="history-date">${item.timestamp}</span>
-                                </div>
-                                <div class="history-results">
-                                    ${resultsSummary}
-                                </div>
-                            </div>
-                        `;
-                        
-                        historyGrid.appendChild(historyItem);
-                    } catch (itemError) {
-                        console.error('Error processing history item:', itemError);
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading history:', error);
-                const historyGrid = document.getElementById('historyGrid');
-                historyGrid.innerHTML = `<div class="error-message">Error loading history: ${error.message}</div>`;
-            }
-        }
-
-        // Clear History with better error handling
-        document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
-            if (confirm('Are you sure you want to clear all history?')) {
-                try {
-                    const response = await fetch('/clear-history', {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        await loadHistory();
-                    } else {
-                        throw new Error(data.error || 'Failed to clear history');
-                    }
-                } catch (error) {
-                    console.error('Error clearing history:', error);
-                    alert('Failed to clear history: ' + error.message);
-                }
-            }
-        });
-
-        // File Upload Handling
+        let currentImage = null;
+        let currentLanguage = 'en';
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const imagePreview = document.getElementById('imagePreview');
         const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.querySelector('.loading');
+        const errorMessage = document.querySelector('.error-message');
+        const resultsSection = document.querySelector('.results-section');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const historyContainer = document.getElementById('historyContainer');
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        // Translations
+        const translations = {
+            en: {
+                title: 'Azure Vision Analyzer',
+                subtitle: 'Advanced image analysis powered by Azure Computer Vision',
+                imageRecognition: 'Image Recognition',
+                textDetection: 'Text Detection',
+                uploadText: 'Drop your image here or click to upload',
+                analyze: 'Analyze Image',
+                loading: 'Analyzing...',
+                detectedObjects: 'Detected Objects',
+                detectedText: 'Detected Text',
+                colors: 'Colors',
+                noText: 'No text detected in the image',
+                clearHistory: 'Clear History',
+                history: 'Analysis History',
+                errorOccurred: 'An error occurred',
+                accentColor: 'Accent Color',
+                blackAndWhite: 'Black and White',
+                yes: 'Yes',
+                no: 'No',
+                noImageError: 'Please select an image'
+            },
+            fr: {
+                title: 'Analyseur de Vision Azure',
+                subtitle: 'Analyse d\'images avancée propulsée par Azure Computer Vision',
+                imageRecognition: 'Reconnaissance d\'Image',
+                textDetection: 'Détection de Texte',
+                uploadText: 'Déposez votre image ici ou cliquez pour télécharger',
+                analyze: 'Analyser l\'Image',
+                loading: 'Analyse en cours...',
+                detectedObjects: 'Objets Détectés',
+                detectedText: 'Texte Détecté',
+                colors: 'Couleurs',
+                noText: 'Aucun texte détecté dans l\'image',
+                clearHistory: 'Effacer l\'Historique',
+                history: 'Historique d\'Analyse',
+                errorOccurred: 'Une erreur est survenue',
+                accentColor: 'Couleur d\'Accent',
+                blackAndWhite: 'Noir et Blanc',
+                yes: 'Oui',
+                no: 'Non',
+                noImageError: 'Veuillez sélectionner une image'
+            },
+            ar: {
+                title: 'محلل الرؤية من Azure',
+                subtitle: 'تحليل متقدم للصور مدعوم بتقنية Azure للرؤية الحاسوبية',
+                imageRecognition: 'التعرف على الصور',
+                textDetection: 'اكتشاف النص',
+                uploadText: 'اسحب الصورة هنا أو انقر للتحميل',
+                analyze: 'تحليل الصورة',
+                loading: 'جاري التحليل...',
+                detectedObjects: 'الكائنات المكتشفة',
+                detectedText: 'النص المكتشف',
+                colors: 'الألوان',
+                noText: 'لم يتم اكتشاف نص في الصورة',
+                clearHistory: 'مسح السجل',
+                history: 'سجل التحليل',
+                errorOccurred: 'حدث خطأ',
+                accentColor: 'لون التأكيد',
+                blackAndWhite: 'أسود وأبيض',
+                yes: 'نعم',
+                no: 'لا',
+                noImageError: 'يرجى اختيار صورة'
+            }
+        };
+
+        // Language handling
+        const languageSelect = document.getElementById('language-select');
+        
+        // Check for saved language preference
+        const savedLanguage = localStorage.getItem('language') || 'en';
+        languageSelect.value = savedLanguage;
+        setLanguage(savedLanguage);
+        
+        languageSelect.addEventListener('change', (e) => {
+            const language = e.target.value;
+            setLanguage(language);
+            localStorage.setItem('language', language);
+        });
+        
+        function setLanguage(language) {
+            document.documentElement.lang = language;
+            document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+            currentLanguage = language;
+            
+            // Update all translatable elements
+            document.querySelector('.header h1').textContent = translations[language].title;
+            document.querySelector('.header p').textContent = translations[language].subtitle;
+            document.querySelectorAll('.mode-btn')[0].textContent = translations[language].imageRecognition;
+            document.querySelectorAll('.mode-btn')[1].textContent = translations[language].textDetection;
+            document.querySelector('.upload-area p').textContent = translations[language].uploadText;
+            document.querySelector('.analyze-btn').textContent = translations[language].analyze;
+            
+            // Update dynamic content if it exists
+            const loadingElement = document.querySelector('.loading');
+            if (loadingElement) {
+                loadingElement.textContent = translations[language].loading;
+            }
+        }
+
+        // Mode selection
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.mode-btn.active').classList.remove('active');
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+                resetUI();
+            });
+        });
+
+        // Drag and drop handling
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
         });
+
         dropZone.addEventListener('dragleave', () => {
             dropZone.classList.remove('dragover');
         });
+
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            handleFile(file);
+            handleFiles(e.dataTransfer.files);
+        });
+
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
         });
 
         fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            handleFile(file);
+            handleFiles(e.target.files);
         });
 
-        function handleFile(file) {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imagePreview.src = e.target.result;
-                    imagePreview.style.display = 'block';
-                    analyzeBtn.disabled = false;
-                };
-                reader.readAsDataURL(file);
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        currentImage = e.target.result;
+                        imagePreview.src = currentImage;
+                        imagePreview.style.display = 'block';
+                        analyzeBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    showError(translations[currentLanguage].noImageError);
+                }
             }
         }
 
-        // Analysis
+        // Analysis handling
         analyzeBtn.addEventListener('click', async () => {
-            const image = imagePreview.src;
-            if (!image) return;
+            if (!currentImage) {
+                showError(translations[currentLanguage].noImageError);
+                return;
+            }
 
-            document.querySelector('.loading-overlay').style.display = 'flex';
-            
+            const mode = document.querySelector('.mode-btn.active').dataset.mode;
+            showLoading();
+
             try {
-                const formData = new FormData();
-                formData.append('image', image);
-                formData.append('mode', currentMode);
-
                 const response = await fetch('/analyze', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: currentImage,
+                        mode: mode,
+                        language: currentLanguage
+                    })
                 });
 
+                if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
+
                 const data = await response.json();
-
-                if (data.success) {
-                    document.querySelector('.loading-overlay').style.display = 'none';
-                    
-                    if (currentMode === 'image') {
-                        // Show image analysis results
-                        imageResults.style.display = 'block';
-                        textResults.style.display = 'none';
-                        
-                        // Update description
-                        document.getElementById('description').textContent = data.description;
-                        
-                        // Update objects
-                        const objectsContainer = document.getElementById('objects');
-                        objectsContainer.innerHTML = '';
-                        data.objects.forEach(obj => {
-                            const objElement = document.createElement('div');
-                            objElement.className = 'object-item';
-                            const confidence = Math.round(obj.confidence * 100);
-                            objElement.innerHTML = `
-                                <span class="object-name">${obj.name}</span>
-                                <span class="object-confidence">${confidence}%</span>
-                            `;
-                            objectsContainer.appendChild(objElement);
-                        });
-
-                        // Update colors
-                        const colorsContainer = document.getElementById('colors');
-                        colorsContainer.innerHTML = '';
-                        const colorsList = document.createElement('div');
-                        colorsList.className = 'colors-list';
-                        data.colors.dominant_colors.forEach(color => {
-                            const colorBox = document.createElement('div');
-                            colorBox.className = 'color-box';
-                            colorBox.style.backgroundColor = color.toLowerCase();
-                            colorBox.title = color;
-                            colorsList.appendChild(colorBox);
-                        });
-                        colorsContainer.appendChild(colorsList);
-                    } else {
-                        // Show OCR results
-                        textResults.style.display = 'block';
-                        imageResults.style.display = 'none';
-                        
-                        const textContainer = document.getElementById('textResults');
-                        textContainer.innerHTML = '';
-                        
-                        if (data.text_results.length > 0) {
-                            data.text_results.forEach(text => {
-                                const textElement = document.createElement('div');
-                                textElement.className = 'text-item';
-                                const confidence = Math.round(text.confidence * 100);
-                                textElement.innerHTML = `
-                                    <span class="text-content">${text.text}</span>
-                                    <span class="text-confidence">${confidence}%</span>
-                                `;
-                                textContainer.appendChild(textElement);
-                            });
-                        } else {
-                            textContainer.innerHTML = '<p class="no-results">No text detected in the image</p>';
-                        }
-                    }
-                } else {
-                    throw new Error(data.error || 'Analysis failed');
-                }
+                displayResults(data, mode);
+                await loadHistory();
             } catch (error) {
-                document.querySelector('.loading-overlay').style.display = 'none';
-                alert('Error: ' + error.message);
+                showError(translations[currentLanguage].errorOccurred);
+            } finally {
+                hideLoading();
             }
         });
+
+        async function loadHistory() {
+            try {
+                const response = await fetch(`/history?language=${currentLanguage}`);
+                if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
+
+                const history = await response.json();
+                displayHistory(history);
+            } catch (error) {
+                showError(translations[currentLanguage].errorOccurred);
+            }
+        }
+
+        async function clearHistory() {
+            try {
+                const response = await fetch(`/clear-history?language=${currentLanguage}`, {
+                    method: 'POST'
+                });
+                if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
+
+                historyContainer.innerHTML = '';
+            } catch (error) {
+                showError(translations[currentLanguage].errorOccurred);
+            }
+        }
+
+        function displayResults(data, mode) {
+            resultsContainer.innerHTML = '';
+            resultsSection.style.display = 'block';
+
+            if (mode === 'image') {
+                // Display objects
+                if (data.objects && data.objects.length > 0) {
+                    const objectsDiv = document.createElement('div');
+                    objectsDiv.className = 'result-item';
+                    objectsDiv.innerHTML = `
+                        <h3><i class="fas fa-cube"></i> ${translations[currentLanguage].detectedObjects}</h3>
+                        ${data.objects.map(obj => `
+                            <div class="object-item">
+                                <p>
+                                    ${obj.name}
+                                    <span class="confidence-percentage">${Math.round(obj.confidence * 100)}%</span>
+                                </p>
+                                <div class="confidence-bar">
+                                    <div class="confidence-bar-fill" style="width: ${obj.confidence * 100}%"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                    resultsContainer.appendChild(objectsDiv);
+                }
+
+                // Display colors
+                if (data.colors) {
+                    const colorsDiv = document.createElement('div');
+                    colorsDiv.className = 'result-item';
+                    colorsDiv.innerHTML = `
+                        <h3><i class="fas fa-palette"></i> ${translations[currentLanguage].colors}</h3>
+                        <div class="color-labels">
+                            ${data.colors.dominant_colors.map(color => `
+                                <span class="color-label" style="background-color: ${color}">
+                                    ${color}
+                                </span>
+                            `).join('')}
+                        </div>
+                        <div class="color-label accent-color" style="background-color: ${data.colors.accent_color}">
+                            ${translations[currentLanguage].accentColor}: ${data.colors.accent_color}
+                        </div>
+                        <p class="bw-text">${translations[currentLanguage].blackAndWhite}: ${data.colors.is_bw ? translations[currentLanguage].yes : translations[currentLanguage].no}</p>
+                    `;
+                    resultsContainer.appendChild(colorsDiv);
+                }
+            } else {
+                // Text Detection Results
+                const textDiv = document.createElement('div');
+                textDiv.className = 'result-item';
+                textDiv.innerHTML = `<h3><i class="fas fa-font"></i> ${translations[currentLanguage].detectedText}</h3>`;
+
+                if (data.text_results && data.text_results.length > 0) {
+                    const textResultsHtml = data.text_results.map(text => {
+                        const confidence = text.confidence || 1.0;
+                        return `
+                            <div class="text-item">
+                                <div class="text-content">
+                                    <p>${text.text}</p>
+                                    <span class="confidence-percentage">${Math.round(confidence * 100)}%</span>
+                                </div>
+                                <div class="confidence-bar">
+                                    <div class="confidence-bar-fill" style="width: ${confidence * 100}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    textDiv.innerHTML += textResultsHtml;
+                } else {
+                    textDiv.innerHTML += `
+                        <div class="text-item">
+                            <p class="no-text-message">${translations[currentLanguage].noText}</p>
+                        </div>
+                    `;
+                }
+                resultsContainer.appendChild(textDiv);
+            }
+        }
+
+        function displayHistory(history) {
+            historyContainer.innerHTML = '';
+            history.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+
+                // Create description text
+                const descriptionText = item.mode === 'image' 
+                    ? (item.results.description || 'No description available')
+                    : (item.results.text_results?.map(t => t.text).join(', ') || 'No text detected');
+
+                historyItem.innerHTML = `
+                    <img src="data:image/jpeg;base64,${item.image}" class="history-image" alt="Analyzed image">
+                    <div class="history-details">
+                        <h4>${item.mode === 'image' ? 'Image Analysis' : 'Text Detection'}</h4>
+                        <p class="history-timestamp">${item.timestamp}</p>
+                        <p class="history-description">${descriptionText}</p>
+                    </div>
+                `;
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('active');
+        }
+
+        function resetUI() {
+            imagePreview.style.display = 'none';
+            analyzeBtn.disabled = true;
+            errorMessage.classList.remove('active');
+            resultsSection.style.display = 'none';
+            resultsContainer.innerHTML = '';
+        }
+
+        function showLoading() {
+            loading.classList.add('active');
+        }
+
+        function hideLoading() {
+            loading.classList.remove('active');
+        }
+
+        // Theme toggle functionality
+        const themeToggle = document.querySelector('.theme-toggle');
+        const themeIcon = themeToggle.querySelector('i');
+        
+        // Check for saved theme preference
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+        
+        function updateThemeIcon(theme) {
+            themeIcon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        }
+
+        // Load history on page load
+        loadHistory();
     </script>
 </body>
 </html>
