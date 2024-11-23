@@ -69,6 +69,10 @@ color_translations = {
     }
 }
 
+# Constants for history management
+HISTORY_DIR = 'history'
+HISTORY_FILE = os.path.join(HISTORY_DIR, 'history.json')
+
 def translate_text(text, target_lang):
     if target_lang == 'en':
         return text
@@ -89,8 +93,19 @@ def translate_color(color, target_lang):
 
 def save_to_history(image_data, results, mode, language):
     try:
+        # Ensure history directory exists
+        os.makedirs(HISTORY_DIR, exist_ok=True)
+        
+        # Load existing history
+        history = []
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+            except json.JSONDecodeError:
+                logger.error("Error reading history file. Starting with empty history.")
+        
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
         
         # Clean up base64 image data
         if ',' in image_data:
@@ -104,10 +119,11 @@ def save_to_history(image_data, results, mode, language):
             'results': results
         }
         
-        with open(history_file, 'a') as f:
-            json.dump(history_data, f)
-            f.write('\n')
-        logger.info(f"Successfully saved history to {history_file}")
+        history.append(history_data)
+        
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=4)
+        logger.info(f"Successfully saved history to {HISTORY_FILE}")
         return True
     except Exception as e:
         logger.error(f"Error saving history: {str(e)}")
@@ -256,13 +272,12 @@ def analyze():
 @app.route('/history', methods=['GET'])
 def history():
     try:
-        language = request.args.get('language', 'en')
-        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
+        history_file = HISTORY_FILE
         if not os.path.exists(history_file):
             return jsonify([])
             
-        with open(history_file, 'r') as f:
-            history = [json.loads(line.strip()) for line in f.readlines()]
+        with open(history_file, 'r', encoding='utf-8') as f:
+            history = json.load(f)
         return jsonify(history)
 
     except Exception as e:
@@ -272,8 +287,7 @@ def history():
 @app.route('/clear-history', methods=['POST'])
 def clear_history():
     try:
-        language = request.args.get('language', 'en')
-        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'history_{language}.json')
+        history_file = HISTORY_FILE
         if os.path.exists(history_file):
             os.remove(history_file)
         return jsonify({'success': True, 'message': 'History cleared successfully'})
