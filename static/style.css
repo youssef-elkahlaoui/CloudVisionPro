@@ -809,6 +809,13 @@ body {
     .current-lang {
         display: none;
     }
+
+    .controls-container {
+        position: static;
+        background: none;
+        box-shadow: none;
+        padding: 0.5rem;
+    }
 }
 
 @media (max-width: 768px) {
