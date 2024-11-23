@@ -12,23 +12,45 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <button class="theme-toggle" aria-label="Toggle dark mode">
-        <i class="fas fa-moon"></i>
-    </button>
-    
-    <div class="language-toggle">
-        <i class="fas fa-globe"></i>
-        <select id="language-select">
-            <option value="en">English</option>
-            <option value="fr">Français</option>
-            <option value="ar">العربية</option>
-        </select>
+    <div class="top-controls">
+        <div class="control-group">
+            <button class="theme-toggle" aria-label="Toggle dark mode">
+                <i class="fas fa-sun light-icon"></i>
+                <i class="fas fa-moon dark-icon"></i>
+            </button>
+            <div class="language-selector">
+                <button class="language-btn">
+                    <i class="fas fa-globe"></i>
+                    <span class="current-lang">EN</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="language-dropdown">
+                    <button class="lang-option" data-lang="en">
+                        <span class="lang-flag">🇺🇸</span>
+                        <span class="lang-name">English</span>
+                        <span class="lang-code">EN</span>
+                    </button>
+                    <button class="lang-option" data-lang="fr">
+                        <span class="lang-flag">🇫🇷</span>
+                        <span class="lang-name">Français</span>
+                        <span class="lang-code">FR</span>
+                    </button>
+                    <button class="lang-option" data-lang="ar">
+                        <span class="lang-flag">MA</span>
+                        <span class="lang-name">العربية</span>
+                        <span class="lang-code">AR</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="container">
         <header class="header">
-            <h1>Azure Vision Analyzer</h1>
-            <p>Advanced image analysis powered by Azure Computer Vision</p>
+            <div class="header-content">
+                <h1>Azure Vision Analyzer</h1>
+                <p>Advanced image analysis powered by Azure Computer Vision</p>
+            </div>
         </header>
 
         <div class="mode-selector">
@@ -42,35 +64,49 @@
 
         <section class="upload-section">
             <div class="upload-area" id="dropZone">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>Drag and drop an image here or click to select</p>
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                <div class="upload-content">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop an image here or click to select</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
             </div>
             <img id="imagePreview" class="preview-image" style="display: none;">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <div class="analyzing-text">
+                    <span id="analyzingText">Analyzing</span><span class="dots"></span>
+                </div>
+            </div>
             <button id="analyzeBtn" class="analyze-btn" disabled>
                 <i class="fas fa-magic"></i> Analyze Image
             </button>
         </section>
 
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>Analyzing image...</p>
-        </div>
-
-        <div class="error-message"></div>
-
         <section class="results-section" style="display: none;">
-            <h2>Analysis Results</h2>
-            <div id="resultsContainer"></div>
+            <div class="section-header">
+                <h2 id="resultsTitle">Analysis Results</h2>
+            </div>
+            <div id="resultsContainer" class="results-container"></div>
         </section>
 
-        <section class="history-section" id="historyContainer">
-            <!-- History items will be dynamically added here -->
+        <section class="history-section">
+            <div class="section-header">
+                <h2 id="historyTitle">Analysis History</h2>
+                <button id="clearHistoryBtn" class="clear-history-btn">
+                    <i class="fas fa-trash"></i> Clear History
+                </button>
+            </div>
+            <div id="historyContainer" class="history-grid"></div>
         </section>
+    </div>
 
-        <button id="clearHistoryBtn" class="clear-history-btn">
-            <i class="fas fa-trash"></i> Clear History
-        </button>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loader"></div>
+    </div>
+
+    <div id="errorToast" class="error-toast">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="errorMessage"></span>
     </div>
 
     <script>
@@ -81,8 +117,8 @@
         const fileInput = document.getElementById('fileInput');
         const imagePreview = document.getElementById('imagePreview');
         const analyzeBtn = document.getElementById('analyzeBtn');
-        const loading = document.querySelector('.loading');
-        const errorMessage = document.querySelector('.error-message');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorMessage = document.getElementById('errorMessage');
         const resultsSection = document.querySelector('.results-section');
         const resultsContainer = document.getElementById('resultsContainer');
         const clearHistoryBtn = document.getElementById('clearHistoryBtn');
@@ -109,7 +145,15 @@
                 blackAndWhite: 'Black and White',
                 yes: 'Yes',
                 no: 'No',
-                noImageError: 'Please select an image'
+                noImageError: 'Please select an image',
+                description: 'Description',
+                dominantColors: 'Dominant Colors',
+                objects: 'Objects',
+                uploadImage: 'Upload Image',
+                analyzeImage: 'Analyze',
+                imageMode: 'Image Analysis',
+                textMode: 'Text Detection',
+                analyzing: 'Analyzing'
             },
             fr: {
                 title: 'Analyseur de Vision Azure',
@@ -130,7 +174,15 @@
                 blackAndWhite: 'Noir et Blanc',
                 yes: 'Oui',
                 no: 'Non',
-                noImageError: 'Veuillez sélectionner une image'
+                noImageError: 'Veuillez sélectionner une image',
+                description: 'Description',
+                dominantColors: 'Couleurs Dominantes',
+                objects: 'Objets',
+                uploadImage: 'Télécharger l\'Image',
+                analyzeImage: 'Analyser',
+                imageMode: 'Analyse d\'Image',
+                textMode: 'Détection de Texte',
+                analyzing: 'Analyse en cours'
             },
             ar: {
                 title: 'محلل الرؤية من Azure',
@@ -145,28 +197,52 @@
                 colors: 'الألوان',
                 noText: 'لم يتم اكتشاف نص في الصورة',
                 clearHistory: 'مسح السجل',
-                history: 'سجل التحليل',
+                history: 'السجل',
                 errorOccurred: 'حدث خطأ',
-                accentColor: 'لون التأكيد',
-                blackAndWhite: 'أسود وأبيض',
+                accentColor: 'اللون المميز',
+                blackAndWhite: 'أبيض وأسود',
                 yes: 'نعم',
                 no: 'لا',
-                noImageError: 'يرجى اختيار صورة'
+                noImageError: 'يرجى اختيار صورة',
+                description: 'الوصف',
+                dominantColors: 'الألوان السائدة',
+                objects: 'الأشياء',
+                uploadImage: 'رفع صورة',
+                analyzeImage: 'تحليل',
+                imageMode: 'تحليل الصورة',
+                textMode: 'اكتشاف النص',
+                analyzing: 'جاري التحليل'
             }
         };
 
         // Language handling
-        const languageSelect = document.getElementById('language-select');
+        const languageSelector = document.querySelector('.language-selector');
+        const languageDropdown = languageSelector.querySelector('.language-dropdown');
+        const languageBtn = languageSelector.querySelector('.language-btn');
+        const langOptions = languageDropdown.querySelectorAll('.lang-option');
         
         // Check for saved language preference
         const savedLanguage = localStorage.getItem('language') || 'en';
-        languageSelect.value = savedLanguage;
-        setLanguage(savedLanguage);
+        langOptions.forEach(option => {
+            if (option.dataset.lang === savedLanguage) {
+                option.classList.add('selected');
+                languageBtn.querySelector('.current-lang').textContent = option.querySelector('.lang-code').textContent;
+            }
+        });
         
-        languageSelect.addEventListener('change', (e) => {
-            const language = e.target.value;
-            setLanguage(language);
-            localStorage.setItem('language', language);
+        languageBtn.addEventListener('click', () => {
+            languageDropdown.classList.toggle('open');
+        });
+        
+        langOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                langOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                languageBtn.querySelector('.current-lang').textContent = option.querySelector('.lang-code').textContent;
+                setLanguage(option.dataset.lang);
+                localStorage.setItem('language', option.dataset.lang);
+                languageDropdown.classList.remove('open');
+            });
         });
         
         function setLanguage(language) {
@@ -181,9 +257,13 @@
             document.querySelectorAll('.mode-btn')[1].textContent = translations[language].textDetection;
             document.querySelector('.upload-area p').textContent = translations[language].uploadText;
             document.querySelector('.analyze-btn').textContent = translations[language].analyze;
+            document.querySelector('#resultsTitle').textContent = translations[language].analysisResults;
+            document.querySelector('#historyTitle').textContent = translations[language].history;
+            document.querySelector('#clearHistoryBtn').textContent = translations[language].clearHistory;
+            document.querySelector('#analyzingText').textContent = translations[language].analyzing;
             
             // Update dynamic content if it exists
-            const loadingElement = document.querySelector('.loading');
+            const loadingElement = document.querySelector('.loading-overlay p');
             if (loadingElement) {
                 loadingElement.textContent = translations[language].loading;
             }
@@ -249,7 +329,8 @@
             }
 
             const mode = document.querySelector('.mode-btn.active').dataset.mode;
-            showLoading();
+            document.querySelector('.spinner-container').style.display = 'flex';
+            analyzeBtn.disabled = true;
 
             try {
                 const response = await fetch('/analyze', {
@@ -267,166 +348,252 @@
                 if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
 
                 const data = await response.json();
-                displayResults(data, mode);
-                await loadHistory();
+                displayResults(data);
+                saveToHistory(data);
             } catch (error) {
                 showError(translations[currentLanguage].errorOccurred);
             } finally {
-                hideLoading();
+                document.querySelector('.spinner-container').style.display = 'none';
+                analyzeBtn.disabled = false;
             }
         });
 
-        async function loadHistory() {
-            try {
-                const response = await fetch(`/history?language=${currentLanguage}`);
-                if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
-
-                const history = await response.json();
-                displayHistory(history);
-            } catch (error) {
-                showError(translations[currentLanguage].errorOccurred);
-            }
-        }
-
-        async function clearHistory() {
-            try {
-                const response = await fetch(`/clear-history?language=${currentLanguage}`, {
-                    method: 'POST'
-                });
-                if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
-
-                historyContainer.innerHTML = '';
-            } catch (error) {
-                showError(translations[currentLanguage].errorOccurred);
-            }
-        }
-
-        function displayResults(data, mode) {
-            resultsContainer.innerHTML = '';
+        function displayResults(data) {
             resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = '';
 
-            if (mode === 'image') {
-                // Display objects
-                if (data.objects && data.objects.length > 0) {
-                    const objectsDiv = document.createElement('div');
-                    objectsDiv.className = 'result-item';
-                    objectsDiv.innerHTML = `
-                        <h3><i class="fas fa-cube"></i> ${translations[currentLanguage].detectedObjects}</h3>
-                        ${data.objects.map(obj => `
-                            <div class="object-item">
-                                <p>
-                                    ${obj.name}
-                                    <span class="confidence-percentage">${Math.round(obj.confidence * 100)}%</span>
-                                </p>
-                                <div class="confidence-bar">
-                                    <div class="confidence-bar-fill" style="width: ${obj.confidence * 100}%"></div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    `;
-                    resultsContainer.appendChild(objectsDiv);
+            const resultTitle = document.createElement('h2');
+            resultTitle.className = 'results-title';
+            resultTitle.textContent = translations[currentLanguage].analysisResults;
+            resultsContainer.appendChild(resultTitle);
+
+            if (currentMode === 'image') {
+                // Display image description
+                if (data.description) {
+                    const descriptionSection = document.createElement('div');
+                    descriptionSection.className = 'result-item';
+                    
+                    const descriptionTitle = document.createElement('h3');
+                    descriptionTitle.innerHTML = `<i class="fas fa-info-circle"></i> ${translations[currentLanguage].description}`;
+                    descriptionSection.appendChild(descriptionTitle);
+
+                    const descriptionText = document.createElement('p');
+                    descriptionText.className = 'description-text';
+                    descriptionText.textContent = data.description;
+                    descriptionSection.appendChild(descriptionText);
+
+                    resultsContainer.appendChild(descriptionSection);
                 }
 
                 // Display colors
                 if (data.colors) {
-                    const colorsDiv = document.createElement('div');
-                    colorsDiv.className = 'result-item';
-                    colorsDiv.innerHTML = `
-                        <h3><i class="fas fa-palette"></i> ${translations[currentLanguage].colors}</h3>
-                        <div class="color-labels">
-                            ${data.colors.dominant_colors.map(color => `
-                                <span class="color-label" style="background-color: ${color}">
-                                    ${color}
-                                </span>
-                            `).join('')}
-                        </div>
-                        <div class="color-label accent-color" style="background-color: ${data.colors.accent_color}">
-                            ${translations[currentLanguage].accentColor}: ${data.colors.accent_color}
-                        </div>
-                        <p class="bw-text">${translations[currentLanguage].blackAndWhite}: ${data.colors.is_bw ? translations[currentLanguage].yes : translations[currentLanguage].no}</p>
-                    `;
-                    resultsContainer.appendChild(colorsDiv);
-                }
-            } else {
-                // Text Detection Results
-                const textDiv = document.createElement('div');
-                textDiv.className = 'result-item';
-                textDiv.innerHTML = `<h3><i class="fas fa-font"></i> ${translations[currentLanguage].detectedText}</h3>`;
+                    const colorSection = document.createElement('div');
+                    colorSection.className = 'result-item';
+                    
+                    const colorTitle = document.createElement('h3');
+                    colorTitle.innerHTML = `<i class="fas fa-palette"></i> ${translations[currentLanguage].colors}`;
+                    colorSection.appendChild(colorTitle);
 
-                if (data.text_results && data.text_results.length > 0) {
-                    const textResultsHtml = data.text_results.map(text => {
-                        const confidence = text.confidence || 1.0;
-                        return `
-                            <div class="text-item">
-                                <div class="text-content">
-                                    <p>${text.text}</p>
-                                    <span class="confidence-percentage">${Math.round(confidence * 100)}%</span>
-                                </div>
-                                <div class="confidence-bar">
-                                    <div class="confidence-bar-fill" style="width: ${confidence * 100}%"></div>
-                                </div>
+                    // Dominant Colors
+                    if (data.colors.dominant_colors && data.colors.dominant_colors.length > 0) {
+                        const dominantTitle = document.createElement('h4');
+                        dominantTitle.textContent = translations[currentLanguage].dominantColors;
+                        colorSection.appendChild(dominantTitle);
+
+                        const dominantGrid = document.createElement('div');
+                        dominantGrid.className = 'color-grid';
+                        data.colors.dominant_colors.forEach(color => {
+                            const colorBox = document.createElement('div');
+                            colorBox.className = 'color-box';
+                            colorBox.style.backgroundColor = color.toLowerCase();
+                            
+                            const colorTooltip = document.createElement('span');
+                            colorTooltip.className = 'color-tooltip';
+                            colorTooltip.textContent = color;
+                            
+                            colorBox.appendChild(colorTooltip);
+                            dominantGrid.appendChild(colorBox);
+                        });
+                        colorSection.appendChild(dominantGrid);
+                    }
+
+                    // Accent Color
+                    if (data.colors.accent_color) {
+                        const accentTitle = document.createElement('h4');
+                        accentTitle.textContent = translations[currentLanguage].accentColor;
+                        colorSection.appendChild(accentTitle);
+
+                        const accentGrid = document.createElement('div');
+                        accentGrid.className = 'color-grid';
+                        
+                        const accentBox = document.createElement('div');
+                        accentBox.className = 'color-box accent-color';
+                        accentBox.style.backgroundColor = data.colors.accent_color.toLowerCase();
+                        
+                        const accentTooltip = document.createElement('span');
+                        accentTooltip.className = 'color-tooltip';
+                        accentTooltip.textContent = data.colors.accent_color;
+                        
+                        accentBox.appendChild(accentTooltip);
+                        accentGrid.appendChild(accentBox);
+                        colorSection.appendChild(accentGrid);
+                    }
+
+                    // Black and White Information
+                    if (data.colors.hasOwnProperty('is_bw')) {
+                        const bwInfo = document.createElement('p');
+                        bwInfo.className = 'bw-info';
+                        bwInfo.innerHTML = `<i class="fas fa-adjust"></i> ${translations[currentLanguage].blackAndWhite}: ${data.colors.is_bw ? translations[currentLanguage].yes : translations[currentLanguage].no}`;
+                        colorSection.appendChild(bwInfo);
+                    }
+
+                    resultsContainer.appendChild(colorSection);
+                }
+
+                // Display objects
+                if (data.objects && data.objects.length > 0) {
+                    const objectsSection = document.createElement('div');
+                    objectsSection.className = 'result-item';
+                    
+                    const objectTitle = document.createElement('h3');
+                    objectTitle.innerHTML = `<i class="fas fa-cube"></i> ${translations[currentLanguage].objects}`;
+                    objectsSection.appendChild(objectTitle);
+
+                    data.objects.forEach(obj => {
+                        const objDiv = document.createElement('div');
+                        objDiv.className = 'object-item';
+                        
+                        const confidence = Math.round(obj.confidence * 100);
+                        objDiv.innerHTML = `
+                            <div class="text-content">
+                                <p>${obj.name}</p>
+                                <span class="confidence-percentage">${confidence}%</span>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${confidence}%"></div>
                             </div>
                         `;
-                    }).join('');
-                    textDiv.innerHTML += textResultsHtml;
-                } else {
-                    textDiv.innerHTML += `
-                        <div class="text-item">
-                            <p class="no-text-message">${translations[currentLanguage].noText}</p>
-                        </div>
-                    `;
+                        objectsSection.appendChild(objDiv);
+                    });
+                    
+                    resultsContainer.appendChild(objectsSection);
                 }
-                resultsContainer.appendChild(textDiv);
+            } else {
+                // Display OCR results
+                if (data.text_results && data.text_results.length > 0) {
+                    const textSection = document.createElement('div');
+                    textSection.className = 'result-item';
+                    
+                    const textTitle = document.createElement('h3');
+                    textTitle.innerHTML = `<i class="fas fa-font"></i> ${translations[currentLanguage].detectedText}`;
+                    textSection.appendChild(textTitle);
+
+                    data.text_results.forEach(item => {
+                        const textDiv = document.createElement('div');
+                        textDiv.className = 'text-item';
+                        
+                        const confidence = Math.round(item.confidence * 100);
+                        textDiv.innerHTML = `
+                            <div class="text-content">
+                                <p>${item.text}</p>
+                                <span class="confidence-percentage">${confidence}%</span>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${confidence}%"></div>
+                            </div>
+                        `;
+                        textSection.appendChild(textDiv);
+                    });
+                    
+                    resultsContainer.appendChild(textSection);
+                } else {
+                    resultsContainer.innerHTML = `<p class="no-text-message">${translations[currentLanguage].noText}</p>`;
+                }
             }
         }
 
-        function displayHistory(history) {
+        // Save analysis to localStorage
+        function saveToHistory(data) {
+            const historyItem = {
+                timestamp: new Date().toISOString(),
+                mode: currentMode,
+                results: data,
+                image: currentImage ? currentImage.name : 'Unknown',
+                imageData: imagePreview.src // Store base64 image data
+            };
+
+            let history = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
+            history.unshift(historyItem);
+            
+            // Keep only the last 10 items
+            if (history.length > 10) {
+                history = history.slice(0, 10);
+            }
+            
+            localStorage.setItem('analysisHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        // Load history from localStorage
+        async function loadHistory() {
+            const historyContainer = document.getElementById('historyContainer');
             historyContainer.innerHTML = '';
+            
+            const history = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
+            
             history.forEach(item => {
                 const historyItem = document.createElement('div');
                 historyItem.className = 'history-item';
-
-                // Create description text
-                const descriptionText = item.mode === 'image' 
-                    ? (item.results.description || 'No description available')
-                    : (item.results.text_results?.map(t => t.text).join(', ') || 'No text detected');
-
+                
+                const timestamp = new Date(item.timestamp).toLocaleString();
+                const mode = item.mode === 'image' ? 'Image Analysis' : 'Text Detection';
+                
                 historyItem.innerHTML = `
-                    <img src="data:image/jpeg;base64,${item.image}" class="history-image" alt="Analyzed image">
-                    <div class="history-details">
-                        <h4>${item.mode === 'image' ? 'Image Analysis' : 'Text Detection'}</h4>
-                        <p class="history-timestamp">${item.timestamp}</p>
-                        <p class="history-description">${descriptionText}</p>
+                    <img src="${item.imageData}" alt="Analyzed image" class="history-image">
+                    <div class="history-content">
+                        <div class="history-timestamp">${timestamp}</div>
+                        <div class="history-mode">${mode}</div>
+                        <div class="history-results">
+                            ${formatHistoryResults(item.results, item.mode)}
+                        </div>
                     </div>
                 `;
+                
                 historyContainer.appendChild(historyItem);
             });
         }
 
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.add('active');
+        function formatHistoryResults(results, mode) {
+            if (mode === 'image') {
+                let output = '';
+                if (results.colors && results.colors.length > 0) {
+                    output += '<div class="history-colors">';
+                    results.colors.forEach(color => {
+                        output += `<div class="history-color-box" style="background-color: ${color.toLowerCase()}"></div>`;
+                    });
+                    output += '</div>';
+                }
+                if (results.objects && results.objects.length > 0) {
+                    output += `<div>Objects: ${results.objects.map(obj => obj.name).join(', ')}</div>`;
+                }
+                return output;
+            } else {
+                return results.text_results && results.text_results.length > 0 
+                    ? results.text_results.map(item => item.text).join(' ') 
+                    : 'No text detected';
+            }
         }
 
-        function resetUI() {
-            imagePreview.style.display = 'none';
-            analyzeBtn.disabled = true;
-            errorMessage.classList.remove('active');
-            resultsSection.style.display = 'none';
-            resultsContainer.innerHTML = '';
-        }
-
-        function showLoading() {
-            loading.classList.add('active');
-        }
-
-        function hideLoading() {
-            loading.classList.remove('active');
-        }
+        // Clear history
+        document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+            localStorage.removeItem('analysisHistory');
+            loadHistory();
+        });
 
         // Theme toggle functionality
         const themeToggle = document.querySelector('.theme-toggle');
-        const themeIcon = themeToggle.querySelector('i');
+        const lightIcon = themeToggle.querySelector('.light-icon');
+        const darkIcon = themeToggle.querySelector('.dark-icon');
         
         // Check for saved theme preference
         const savedTheme = localStorage.getItem('theme') || 'light';
@@ -443,11 +610,50 @@
         });
         
         function updateThemeIcon(theme) {
-            themeIcon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+            if (theme === 'light') {
+                lightIcon.style.display = 'block';
+                darkIcon.style.display = 'none';
+            } else {
+                lightIcon.style.display = 'none';
+                darkIcon.style.display = 'block';
+            }
         }
 
         // Load history on page load
         loadHistory();
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            document.getElementById('errorToast').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('errorToast').style.display = 'none';
+            }, 3000);
+        }
+
+        function resetUI() {
+            imagePreview.style.display = 'none';
+            analyzeBtn.disabled = true;
+            resultsSection.style.display = 'none';
+            resultsContainer.innerHTML = '';
+        }
+
+        // Add scroll behavior for nav buttons
+        let lastScrollPosition = window.pageYOffset;
+        const navButtons = document.querySelector('.nav-buttons');
+        
+        window.addEventListener('scroll', () => {
+            const currentScrollPosition = window.pageYOffset;
+            
+            if (currentScrollPosition > lastScrollPosition && currentScrollPosition > 50) {
+                // Scrolling down - hide buttons
+                navButtons.classList.add('nav-hidden');
+            } else {
+                // Scrolling up - show buttons
+                navButtons.classList.remove('nav-hidden');
+            }
+            
+            lastScrollPosition = currentScrollPosition;
+        });
     </script>
 </body>
 </html>
