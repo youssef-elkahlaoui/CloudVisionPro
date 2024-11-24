@@ -1,155 +1,117 @@
-# Azure Vision Web Application
+# Cloud Vision Application
 
-A modern web application that leverages Azure Computer Vision API for advanced image analysis and text detection. This application provides an intuitive interface for analyzing images and extracting text using Azure's powerful AI capabilities, with support for multiple languages and themes.
+A Flask-based web application that leverages Azure Computer Vision for image analysis and Azure Monitor for application monitoring.
+
+## Architecture
+The application follows a three-tier architecture:
+- Client Layer: Web interface for image upload and result display
+- Server Layer: Flask application with REST API endpoints
+- Cloud Layer: Azure services for image processing and monitoring
+
+For detailed architecture visualization, see `architecture.d2`.
 
 ## Features
-
-### 1. Image Recognition Mode
-- Image description generation
-- Object detection with confidence scores
-- Color analysis (dominant colors, accent color, B&W detection)
-- Results visualization with confidence indicators
-
-### 2. Text Detection (OCR) Mode
-- Text extraction from images
-- Confidence scores for detected text
-- Support for multiple languages
-- Clear text results display
-
-### 3. Multilingual Support
-- Interface available in:
-  - English (default)
-  - French
-  - Arabic
-- Full translation of:
-  - UI elements
-  - Analysis results
-  - Color names
-- RTL support for Arabic
-
-### 4. Theme Support
-- Light and dark mode themes
-- Persistent theme selection
-- Smooth theme transitions
-- Automatic theme preference saving
-
-### 5. History Feature
-- Saves all analysis results
-- View past analyses with timestamps
-- Includes original images and results
-- Clear history functionality
+- 🖼️ Image Analysis
+  - Object detection
+  - Text extraction
+  - Color analysis
+- 🌍 Multi-language Support
+  - Dynamic translation of results
+  - Support for multiple target languages
+- 📊 Monitoring & Logging
+  - Azure Monitor integration
+  - Real-time metrics
+  - Custom log analytics
+- 📝 History Management
+  - Save analysis results
+  - View historical analyses
+  - Clear history functionality
 
 ## Prerequisites
+- Python 3.8+
+- Azure account with:
+  - Computer Vision API subscription
+  - Azure Monitor workspace
+  - Log Analytics workspace
 
-- Python 3.11 or higher
-- Azure Cognitive Services account
-- Azure Computer Vision API key and endpoint
+## Environment Setup
+1. Create a `.env` file with:
+```env
+# Azure Computer Vision
+AZURE_KEY=your_vision_api_key
+AZURE_ENDPOINT=your_vision_endpoint
 
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd azure-vision-app
+# Azure Monitor
+AZURE_DATA_COLLECTION_ENDPOINT=your_monitor_endpoint
+AZURE_RULE_ID=your_rule_id
+AZURE_STREAM_NAME=your_stream_name
+AZURE_WORKSPACE_ID=your_workspace_id
 ```
 
-2. Install required packages:
+## Installation
+1. Clone the repository
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the root directory with your Azure credentials:
-```env
-AZURE_ENDPOINT=your_azure_endpoint
-AZURE_KEY=your_azure_api_key
-```
-
 ## Running the Application
-
 1. Start the Flask server:
 ```bash
 python app.py
 ```
+2. Access the application at `http://localhost:8000`
 
-2. Open your web browser and navigate to:
-```
-http://localhost:8080
-```
+## API Endpoints
+- `GET /`: Main application interface
+- `POST /analyze`: Image analysis endpoint
+  - Accepts: Base64 encoded image
+  - Returns: Analysis results
+- `GET /history`: View analysis history
+- `POST /clear_history`: Clear analysis history
+- `GET /logs`: View application logs
 
-## Usage
-
-### Image Analysis
-1. Click "Image Recognition" mode
-2. Upload an image by dragging and dropping or clicking the upload area
-3. Click "Analyze Image"
-4. View results including description, objects, and colors
-
-### Text Detection
-1. Switch to "Text Detection" mode
-2. Upload an image containing text
-3. Click "Detect Text"
-4. View extracted text with confidence scores
-
-### Language Selection
-1. Use the language toggle in the top-left corner
-2. Choose between English, French, or Arabic
-3. UI and results will update automatically
-4. Language preference is saved for future visits
-
-### Theme Selection
-1. Click the theme toggle in the top-right corner
-2. Switch between light and dark modes
-3. Theme preference is saved for future visits
-
-### History
-1. Click the "History" tab to view past analyses
-2. Each history card shows:
-   - Original image
-   - Analysis type
-   - Timestamp
-   - Results summary
-3. Use "Clear History" to remove all past analyses
+## Monitoring
+The application uses Azure Monitor for comprehensive monitoring:
+1. Application Logs
+   - API endpoint access
+   - Analysis operations
+   - Error tracking
+2. Performance Metrics
+   - Response times
+   - Request counts
+   - Error rates
+3. Custom Metrics
+   - Image processing times
+   - Translation performance
+   - API call success rates
 
 ## Project Structure
-
 ```
-azure-vision-app/
+Cloud/
 ├── app.py              # Main Flask application
-├── static/
-│   └── style.css      # CSS styles with theme support
-├── templates/
-│   └── index.html     # Main HTML template
-├── history/           # Analysis history storage
-└── .env              # Environment variables
+├── azure_monitor.py    # Azure monitoring configuration
+├── requirements.txt    # Python dependencies
+├── architecture.d2     # Architecture diagram
+├── .env               # Environment variables
+└── static/            # Static files
+    └── history/       # Analysis history storage
 ```
-
-## Dependencies
-
-- Flask
-- azure-cognitiveservices-vision-computervision
-- python-dotenv
-- Pillow
-- deep-translator
-- msrest
 
 ## Error Handling
+- Comprehensive error handling for:
+  - Invalid image formats
+  - API failures
+  - Network issues
+  - Invalid requests
 
-The application includes comprehensive error handling for:
-- Invalid image uploads
-- API failures
-- Network issues
-- History management errors
-- Translation errors
-
-## Security Considerations
-
-- Environment variables for sensitive data
+## Security
+- Environment variable based configuration
+- Azure authentication handling
 - Input validation
-- Secure file handling
-- No direct file system access
+- Error message sanitization
 
 ## Contributing
-
 1. Fork the repository
 2. Create a feature branch
 3. Commit your changes
@@ -157,12 +119,9 @@ The application includes comprehensive error handling for:
 5. Create a Pull Request
 
 ## License
-
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
-
 - Azure Computer Vision API
 - Flask Framework
-- Font Awesome Icons
-- Google Translator API
+- Azure Monitor Services
