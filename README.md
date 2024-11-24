@@ -2,6 +2,8 @@
 
 A Flask-based web application that leverages Azure Computer Vision for image analysis and Azure Monitor for application monitoring.
 
+🌐 **Live Application**: [https://cloud-vision.azurewebsites.net/](https://cloud-vision.azurewebsites.net/)
+
 ## Architecture
 The application follows a three-tier architecture:
 - Client Layer: Web interface for image upload and result display
