@@ -1,0 +1,57 @@
+direction right
+// Cloud Vision Application Architecture
+
+// Client Layer
+Client Application [icon: azure-app-service, color: blue] {
+  Web Browser [icon: azure-web-app]
+  User Interface [icon: azure-portal]
+}
+
+// Server Layer
+Flask Server [icon: azure-functions, color: green] {
+  REST API [icon: azure-api-management] {
+    Image Analysis [icon: azure-cognitive-services]
+    History [icon: azure-storage-blob]
+    Monitoring [icon: azure-monitor]
+  }
+  
+  Service Layer {
+    Vision Service [icon: azure-computer-vision]
+    Monitor Service [icon: azure-monitor]
+    Logging Service [icon: azure-log-analytics]
+  }
+}
+
+// Azure Cloud Layer
+Azure Cloud [icon: azure, color: purple] {
+  Computer Vision [icon: azure-cognitive-services]
+  Azure Monitor [icon: azure-monitor]
+  Log Analytics [icon: azure-log-analytics]
+  Azure App Deployment [icon: azure-app-service]
+}
+
+// Data Flow Connections
+
+// Client Layer Arrows
+Web Browser --> User Interface: Open Application
+User Interface --> REST API: Request Image Analysis
+User Interface --> Image Analysis: Return Results
+User Interface --> Web Browser: Display Results
+
+// Server Layer Arrows
+REST API --> Image Analysis: Analyze Image
+Image Analysis --> Vision Service: Call Computer Vision API
+Vision Service --> Computer Vision: Process Image
+Computer Vision --> Vision Service: Return Results
+Image Analysis --> User Interface: Return Results
+
+// Monitoring and Logging Arrows
+Vision Service --> Monitor Service: Send Metrics
+Monitor Service --> Azure Monitor: Log Metrics
+Vision Service --> Logging Service: Log Details
+Logging Service --> Log Analytics: Store Logs
+
+// Deployment Connections
+Azure App Deployment --> Flask Server: Deploy Application
+Azure App Deployment --> REST API: Deploy API
+Azure App Deployment --> User Interface: Deploy Frontend
