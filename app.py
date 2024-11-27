@@ -14,8 +14,7 @@ import json
 import time  # Add time module for retry logic
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 load_dotenv()
 
@@ -80,7 +79,7 @@ def translate_text(text, target_lang):
         translator = GoogleTranslator(source='en', target=target_lang)
         return translator.translate(text)
     except Exception as e:
-        logger.error(f"Translation error: {e}")
+        logging.error(f"Translation error: {e}")
         return text
 
 def translate_color(color, target_lang):
@@ -103,7 +102,7 @@ def save_to_history(image_data, results, mode, language):
                 with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
                     history = json.load(f)
             except json.JSONDecodeError:
-                logger.error("Error reading history file. Starting with empty history.")
+                logging.error("Error reading history file. Starting with empty history.")
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
@@ -123,10 +122,10 @@ def save_to_history(image_data, results, mode, language):
         
         with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
             json.dump(history, f, indent=4)
-        logger.info(f"Successfully saved history to {HISTORY_FILE}")
+        logging.info(f"Successfully saved history to {HISTORY_FILE}")
         return True
     except Exception as e:
-        logger.error(f"Error saving history: {str(e)}")
+        logging.error(f"Error saving history: {str(e)}")
         return False
 
 @app.route('/')
@@ -167,7 +166,7 @@ def analyze():
                 except Exception as e:
                     if attempt == max_retries - 1:
                         raise
-                    logger.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                    logging.warning(f"Retry {attempt + 1} after error: {str(e)}")
                     time.sleep(retry_delay)
                     image_stream.seek(0)  # Reset stream position
 
@@ -189,7 +188,7 @@ def analyze():
             }
 
         else:  # Text detection mode
-            logger.info("Starting text detection mode")
+            logging.info("Starting text detection mode")
             # Add retry logic for OCR
             max_retries = 3
             retry_delay = 1  # seconds
@@ -200,20 +199,20 @@ def analyze():
                         image_stream,
                         raw=True
                     )
-                    logger.info("Successfully initiated text detection")
+                    logging.info("Successfully initiated text detection")
                     break
                 except Exception as e:
                     if attempt == max_retries - 1:
-                        logger.error(f"Failed to initiate text detection after {max_retries} attempts: {str(e)}")
+                        logging.error(f"Failed to initiate text detection after {max_retries} attempts: {str(e)}")
                         raise
-                    logger.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                    logging.warning(f"Retry {attempt + 1} after error: {str(e)}")
                     time.sleep(retry_delay)
                     image_stream.seek(0)  # Reset stream position
 
             # Get the operation location from the response headers
             operation_location = response.headers["Operation-Location"]
             operation_id = operation_location.split('/')[-1]
-            logger.info(f"Got operation ID: {operation_id}")
+            logging.info(f"Got operation ID: {operation_id}")
 
             # Wait for the operation to complete with timeout
             timeout = 30  # seconds
@@ -221,19 +220,19 @@ def analyze():
             
             while True:
                 read_result = computervision_client.get_read_result(operation_id)
-                logger.info(f"Operation status: {read_result.status}")
+                logging.info(f"Operation status: {read_result.status}")
                 
                 if read_result.status not in ['notStarted', 'running']:
                     break
                 if time.time() - start_time > timeout:
-                    logger.error("OCR operation timed out")
+                    logging.error("OCR operation timed out")
                     raise TimeoutError("OCR operation timed out")
                 time.sleep(1)
 
             # Extract text results
             text_results = []
             if read_result.status == OperationStatusCodes.succeeded:
-                logger.info("Text detection succeeded")
+                logging.info("Text detection succeeded")
                 for text_result in read_result.analyze_result.read_results:
                     for line in text_result.lines:
                         # Translate the detected text if language is not English
@@ -242,7 +241,7 @@ def analyze():
                             try:
                                 detected_text = translate_text(line.text, language)
                             except Exception as e:
-                                logger.error(f"Translation error: {str(e)}")
+                                logging.error(f"Translation error: {str(e)}")
                                 # Continue with original text if translation fails
                                 pass
                         
@@ -250,9 +249,9 @@ def analyze():
                             'text': detected_text,
                             'confidence': line.confidence if hasattr(line, 'confidence') else 1.0
                         })
-                        logger.info(f"Detected text: {detected_text} (confidence: {line.confidence if hasattr(line, 'confidence') else 1.0})")
+                        logging.info(f"Detected text: {detected_text} (confidence: {line.confidence if hasattr(line, 'confidence') else 1.0})")
             else:
-                logger.warning(f"Text detection failed with status: {read_result.status}")
+                logging.warning(f"Text detection failed with status: {read_result.status}")
 
             results = {
                 'success': True,
@@ -261,12 +260,12 @@ def analyze():
 
         # Save to history
         if not save_to_history(image_data, results, mode, language):
-            logger.warning("Failed to save to history")
+            logging.warning("Failed to save to history")
         
         return jsonify(results)
 
     except Exception as e:
-        logger.error(f"Error in analyze route: {str(e)}")
+        logging.error(f"Error in analyze route: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/history', methods=['GET'])
@@ -281,7 +280,7 @@ def history():
         return jsonify(history)
 
     except Exception as e:
-        logger.error(f"Error in history route: {str(e)}")
+        logging.error(f"Error in history route: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/clear-history', methods=['POST'])
@@ -293,7 +292,7 @@ def clear_history():
         return jsonify({'success': True, 'message': 'History cleared successfully'})
 
     except Exception as e:
-        logger.error(f"Error clearing history: {str(e)}")
+        logging.error(f"Error clearing history: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
