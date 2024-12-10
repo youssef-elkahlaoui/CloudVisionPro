@@ -542,3 +542,37 @@ window.addEventListener('scroll', () => {
     
     lastScrollPosition = currentScrollPosition;
 });
+
+// Add image URL input handling
+const imageUrlInput = document.getElementById('imageUrlInput');
+const imageUrlBtn = document.getElementById('imageUrlBtn');
+
+imageUrlBtn.addEventListener('click', () => {
+    const imageUrl = imageUrlInput.value.trim();
+    if (imageUrl) {
+        fetch('/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image_url: imageUrl,
+                mode: currentMode,
+                language: currentLanguage
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
+            return response.json();
+        })
+        .then(data => {
+            displayResults(data);
+            saveToHistory(data);
+        })
+        .catch(error => {
+            showError(translations[currentLanguage].errorOccurred);
+        });
+    } else {
+        showError(translations[currentLanguage].noImageError);
+    }
+});

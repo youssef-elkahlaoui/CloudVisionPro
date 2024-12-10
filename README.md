@@ -12,6 +12,11 @@ The application follows a three-tier architecture:
 
 For detailed architecture visualization, see `architecture.d2`.
 
+## Recent Updates
+- Added support for image URL input
+- Integrated Azure Monitor for performance tracking
+- Enhanced error handling and logging
+
 ## Features
 - 🖼️ Image Analysis
   - Object detection
@@ -28,6 +33,8 @@ For detailed architecture visualization, see `architecture.d2`.
   - Save analysis results
   - View historical analyses
   - Clear history functionality
+- Image Upload and URL Input
+- Performance Monitoring
 
 ## Prerequisites
 - Python 3.8+
@@ -48,11 +55,13 @@ AZURE_DATA_COLLECTION_ENDPOINT=your_monitor_endpoint
 AZURE_RULE_ID=your_rule_id
 AZURE_STREAM_NAME=your_stream_name
 AZURE_WORKSPACE_ID=your_workspace_id
+AZURE_INSTRUMENTATION_KEY=your_instrumentation_key
 ```
 
 ## Installation
 1. Clone the repository
-2. Install dependencies:
+2. Create a virtual environment
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```

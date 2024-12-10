@@ -12,6 +12,11 @@ from deep_translator import GoogleTranslator
 import logging
 import json
 import time
+import requests
+
+# Azure Monitor Telemetry
+from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -20,9 +25,14 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Configure Azure Monitor
+configure_azure_monitor()
+FlaskInstrumentor().instrument_app(app)
+
 # Azure credentials
 ENDPOINT = os.getenv('AZURE_ENDPOINT')
 KEY = os.getenv('AZURE_KEY')
+INSTRUMENTATION_KEY = os.getenv('AZURE_INSTRUMENTATION_KEY')
 
 # Initialize Azure client
 computervision_client = ComputerVisionClient(
@@ -81,7 +91,7 @@ def translate_text(text, target_lang):
     except Exception as e:
         logging.error(f"Translation error: {e}")
         return text
-        
+
 def translate_color(color, target_lang):
     if target_lang == 'en':
         return color
@@ -136,13 +146,23 @@ def home():
 def analyze():
     try:
         data = request.get_json()
-        image_data = data.get('image').split(',')[1]
         mode = data.get('mode', 'image')
         language = data.get('language', 'en')
-
-        # Process image data
-        image_bytes = base64.b64decode(image_data)
-        image_stream = io.BytesIO(image_bytes)
+        
+        # Support both base64 and URL input
+        image_data = data.get('image', '')
+        image_url = data.get('image_url', '')
+        
+        # Determine image source
+        if image_url:
+            image_stream = download_image_from_url(image_url)
+            if not image_stream:
+                return jsonify({'success': False, 'error': 'Invalid image URL'}), 400
+        else:
+            # Existing base64 handling
+            image_data = image_data.split(',')[1] if ',' in image_data else image_data
+            image_bytes = base64.b64decode(image_data)
+            image_stream = io.BytesIO(image_bytes)
 
         if mode == 'image':
             # Analyze image for objects and description
