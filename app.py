@@ -14,20 +14,43 @@ import json
 import time
 import requests
 
-# Azure Monitor Telemetry
-from azure.monitor.opentelemetry import configure_azure_monitor
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
+# Azure computer vision imports
+from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes, OperationStatusCodes
+from msrest.authentication import CognitiveServicesCredentials
+
+# Azure Monitor imports
+from opencensus.ext.azure.log_exporter import AzureLogHandler
+from opencensus.ext.azure.trace_exporter import AzureExporter
+from opencensus.ext.flask.flask_middleware import FlaskMiddleware
+from opencensus.trace.samplers import ProbabilitySampler
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Add Azure Monitor logging if connection string is available
+logger = logging.getLogger(__name__)
+connection_string = os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING')
+if connection_string:
+    try:
+        logger.addHandler(AzureLogHandler(connection_string=connection_string))
+    except Exception as e:
+        print(f"Could not add Azure Log Handler: {e}")
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# Configure Azure Monitor
-configure_azure_monitor()
-FlaskInstrumentor().instrument_app(app)
+# Initialize Azure Monitor only if connection string is available
+if connection_string:
+    try:
+        middleware = FlaskMiddleware(
+            app,
+            exporter=AzureExporter(connection_string=connection_string),
+            sampler=ProbabilitySampler(rate=1.0)
+        )
+    except Exception as e:
+        print(f"Could not initialize Azure Monitor middleware: {e}")
 
 # Azure credentials
 ENDPOINT = os.getenv('AZURE_ENDPOINT')
@@ -148,21 +171,11 @@ def analyze():
         data = request.get_json()
         mode = data.get('mode', 'image')
         language = data.get('language', 'en')
-        
-        # Support both base64 and URL input
-        image_data = data.get('image', '')
-        image_url = data.get('image_url', '')
-        
-        # Determine image source
-        if image_url:
-            image_stream = download_image_from_url(image_url)
-            if not image_stream:
-                return jsonify({'success': False, 'error': 'Invalid image URL'}), 400
-        else:
-            # Existing base64 handling
-            image_data = image_data.split(',')[1] if ',' in image_data else image_data
-            image_bytes = base64.b64decode(image_data)
-            image_stream = io.BytesIO(image_bytes)
+        image_data = data.get('image', '')        
+        # Existing base64 handling
+        image_data = image_data.split(',')[1] if ',' in image_data else image_data
+        image_bytes = base64.b64decode(image_data)
+        image_stream = io.BytesIO(image_bytes)
 
         if mode == 'image':
             # Analyze image for objects and description
