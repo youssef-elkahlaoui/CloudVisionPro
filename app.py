@@ -1,4 +1,7 @@
 from flask import Flask, request, jsonify, render_template, url_for
+from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes, OperationStatusCodes
+from msrest.authentication import CognitiveServicesCredentials
 from PIL import Image
 import os
 from datetime import datetime
@@ -10,36 +13,12 @@ import logging
 import json
 import time
 
-# Azure computer vision
-from azure.cognitiveservices.vision.computervision import ComputerVisionClient
-from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes, OperationStatusCodes
-from msrest.authentication import CognitiveServicesCredentials
-
-# Azure Monitor imports
-from opencensus.ext.azure.log_exporter import AzureLogHandler
-from opencensus.ext.azure.trace_exporter import AzureExporter
-from opencensus.ext.flask.flask_middleware import FlaskMiddleware
-from opencensus.trace.samplers import ProbabilitySampler
-
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Add Azure Monitor logging
-logger = logging.getLogger(__name__)
-logger.addHandler(AzureLogHandler(
-    connection_string=os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING'))
-)
 
 load_dotenv()
 
 app = Flask(__name__)
-
-# Initialize Azure Monitor
-middleware = FlaskMiddleware(
-    app,
-    exporter=AzureExporter(connection_string=os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING')),
-    sampler=ProbabilitySampler(rate=1.0)
-)
 
 # Azure credentials
 ENDPOINT = os.getenv('AZURE_ENDPOINT')
