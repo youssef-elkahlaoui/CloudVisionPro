@@ -7,8 +7,3 @@ Werkzeug==2.3.7
 msrest==0.7.1
 azure-common==1.1.28
 deep-translator==1.11.4
-# Azure Monitoring Packages
-applicationinsights==0.11.10
-opencensus-ext-azure==1.1.9
-opencensus-ext-flask==0.8.2
-opencensus-ext-logging==0.1.0
