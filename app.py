@@ -141,20 +141,30 @@ def analyze():
         image_data = data.get('image_data', '')
         mode = data.get('mode', 'image')
         language = data.get('language', 'en')
-
-        # Handle base64 image data
-        if ',' in image_data:
-            image_data = image_data.split(',')[1]
         
-        # Convert base64 to image stream
-        image_bytes = base64.b64decode(image_data)
-        image_stream = io.BytesIO(image_bytes)
-
+        logging.info(f"Analyzing image in mode: {mode}")
+        
         try:
-            if mode == 'text':
-                results = detect_text_from_image(image_stream, language)
+            # Check if the input is a URL
+            if isinstance(image_data, str) and (image_data.startswith('http://') or image_data.startswith('https://')):
+                # Use URL directly with Azure
+                if mode == 'text':
+                    results = detect_text_from_url(image_data, language)
+                else:
+                    results = analyze_image_from_url(image_data, language)
             else:
-                results = analyze_image_from_stream(image_stream, language)
+                # Handle base64 image data
+                if ',' in image_data:
+                    image_data = image_data.split(',')[1]
+                
+                # Convert base64 to image stream
+                image_bytes = base64.b64decode(image_data)
+                image_stream = io.BytesIO(image_bytes)
+                
+                if mode == 'text':
+                    results = detect_text_from_image(image_stream, language)
+                else:
+                    results = analyze_image_from_stream(image_stream, language)
             
             # Save to history
             save_to_history(image_data, results, mode, language)
@@ -273,6 +283,108 @@ def detect_text_from_image(image_stream, language):
         }
     except Exception as e:
         logging.error(f"Error detecting text: {str(e)}")
+        raise
+
+def analyze_image_from_url(image_url, language):
+    try:
+        features = [
+            VisualFeatureTypes.description,
+            VisualFeatureTypes.objects,
+            VisualFeatureTypes.color
+        ]
+        
+        # Add retry logic for better reliability
+        max_retries = 3
+        retry_delay = 1  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                response = computervision_client.analyze_image(image_url, visual_features=features)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                logging.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                time.sleep(retry_delay)
+        
+        # Process results
+        results = {
+            'success': True,
+            'description': translate_text(response.description.captions[0].text if response.description.captions else 'No description available', language),
+            'objects': [
+                {
+                    'name': translate_text(obj.object_property, language),
+                    'confidence': obj.confidence
+                } for obj in response.objects
+            ],
+            'colors': {
+                'dominant_colors': [translate_color(color, language) for color in response.color.dominant_colors],
+                'accent_color': translate_color(response.color.accent_color, language),
+                'is_bw': response.color.is_bw_img
+            }
+        }
+        return results
+    except Exception as e:
+        logging.error(f"Error analyzing image from URL: {str(e)}")
+        raise
+
+def detect_text_from_url(image_url, language):
+    try:
+        # Add retry logic for OCR
+        max_retries = 3
+        retry_delay = 1  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                response = computervision_client.read(image_url, raw=True)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                logging.warning(f"Retry {attempt + 1} after error: {str(e)}")
+                time.sleep(retry_delay)
+        
+        # Get the operation location
+        operation_location = response.headers["Operation-Location"]
+        operation_id = operation_location.split('/')[-1]
+        
+        # Wait for the operation to complete
+        timeout = 30  # seconds
+        start_time = time.time()
+        
+        while True:
+            read_result = computervision_client.get_read_result(operation_id)
+            if read_result.status not in ['notStarted', 'running']:
+                break
+            if time.time() - start_time > timeout:
+                raise TimeoutError("OCR operation timed out")
+            time.sleep(1)
+        
+        # Process results
+        text_results = []
+        if read_result.status == OperationStatusCodes.succeeded:
+            for text_result in read_result.analyze_result.read_results:
+                for line in text_result.lines:
+                    detected_text = line.text
+                    if language != 'en':
+                        try:
+                            detected_text = translate_text(line.text, language)
+                        except Exception as e:
+                            logging.error(f"Translation error: {str(e)}")
+                            # Continue with original text if translation fails
+                            pass
+                    
+                    text_results.append({
+                        'text': detected_text,
+                        'confidence': line.confidence if hasattr(line, 'confidence') else 1.0
+                    })
+        
+        return {
+            'success': True,
+            'text_results': text_results
+        }
+    except Exception as e:
+        logging.error(f"Error detecting text from URL: {str(e)}")
         raise
 
 @app.route('/fetch_image_url', methods=['POST'])

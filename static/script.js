@@ -170,6 +170,74 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     });
 });
 
+// Handle upload options
+const urlInput = document.getElementById('urlInput');
+const fetchUrlBtn = document.getElementById('fetchUrlBtn');
+const uploadOptions = document.querySelectorAll('.upload-option-btn');
+
+// Handle upload option switching
+uploadOptions.forEach(btn => {
+    btn.addEventListener('click', () => {
+        uploadOptions.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        const option = btn.dataset.option;
+        if (option === 'url') {
+            dropZone.style.display = 'none';
+            document.querySelector('.url-input-area').style.display = 'flex';
+        } else {
+            dropZone.style.display = 'block';
+            document.querySelector('.url-input-area').style.display = 'none';
+        }
+        resetUI();
+    });
+});
+
+// Handle URL image fetch
+fetchUrlBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+        showError(translations[currentLanguage].noImageError);
+        return;
+    }
+
+    try {
+        // Show loading state
+        fetchUrlBtn.disabled = true;
+        fetchUrlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+
+        // Create a new image to test if the URL is valid
+        const img = new Image();
+        
+        img.onload = async () => {
+            // URL is valid, show preview
+            imagePreview.src = url;
+            imagePreview.style.display = 'block';
+            currentImage = url;  // Store the URL directly
+            analyzeBtn.disabled = false;
+            
+            // Clear any previous errors
+            const errorToast = document.getElementById('errorToast');
+            if (errorToast) errorToast.style.display = 'none';
+        };
+        
+        img.onerror = () => {
+            showError('Failed to load image. Please check the URL and try again.');
+            imagePreview.style.display = 'none';
+            analyzeBtn.disabled = true;
+        };
+        
+        img.src = url;
+    } catch (error) {
+        showError(error.message || 'Failed to fetch image from URL');
+        imagePreview.style.display = 'none';
+        analyzeBtn.disabled = true;
+    } finally {
+        fetchUrlBtn.disabled = false;
+        fetchUrlBtn.innerHTML = '<i class="fas fa-download"></i> Fetch Image';
+    }
+});
+
 // File upload handling
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -224,16 +292,18 @@ analyzeBtn.addEventListener('click', async () => {
         document.querySelector('.spinner-container').style.display = 'flex';
         analyzeBtn.disabled = true;
 
+        const requestBody = {
+            mode: currentMode,
+            language: currentLanguage,
+            image_data: currentImage
+        };
+
         const response = await fetch('/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                image_data: currentImage,
-                mode: currentMode,
-                language: currentLanguage
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {

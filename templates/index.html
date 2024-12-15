@@ -63,12 +63,26 @@
         </div>
 
         <section class="upload-section">
+            <div class="upload-options">
+                <button class="upload-option-btn active" data-option="file">
+                    <i class="fas fa-file-upload"></i> Local File
+                </button>
+                <button class="upload-option-btn" data-option="url">
+                    <i class="fas fa-link"></i> Image URL
+                </button>
+            </div>
             <div class="upload-area" id="dropZone">
                 <div class="upload-content">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <p>Drag and drop an image here or click to select</p>
                     <input type="file" id="fileInput" accept="image/*" style="display: none;">
                 </div>
+            </div>
+            <div class="url-input-area" style="display: none;">
+                <input type="url" id="urlInput" placeholder="Enter image URL here" class="url-input">
+                <button id="fetchUrlBtn" class="url-fetch-btn">
+                    <i class="fas fa-download"></i> Fetch Image
+                </button>
             </div>
             <img id="imagePreview" class="preview-image" style="display: none;">
             <div class="spinner-container">
