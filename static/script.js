@@ -41,7 +41,8 @@ const translations = {
         analyzeImage: 'Analyze',
         imageMode: 'Image Analysis',
         textMode: 'Text Detection',
-        analyzing: 'Analyzing'
+        analyzing: 'Analyzing',
+        invalidFileType: 'Invalid file type. Please select an image file.'
     },
     fr: {
         title: 'Analyseur de Vision Azure',
@@ -70,7 +71,8 @@ const translations = {
         analyzeImage: 'Analyser',
         imageMode: 'Analyse d\'Image',
         textMode: 'Détection de Texte',
-        analyzing: 'Analyse en cours'
+        analyzing: 'Analyse en cours',
+        invalidFileType: 'Type de fichier invalide. Veuillez sélectionner un fichier image.'
     },
     ar: {
         title: 'محلل الرؤية من Azure',
@@ -99,7 +101,8 @@ const translations = {
         analyzeImage: 'تحليل',
         imageMode: 'تحليل الصورة',
         textMode: 'اكتشاف النص',
-        analyzing: 'جاري التحليل'
+        analyzing: 'جاري التحليل',
+        invalidFileType: 'نوع الملف غير صالح. يرجى اختيار ملف صورة.'
     }
 };
 
@@ -167,7 +170,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     });
 });
 
-// Drag and drop handling
+// File upload handling
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropZone.classList.add('dragover');
@@ -192,60 +195,67 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function handleFiles(files) {
-    if (files.length > 0) {
-        const file = files[0];
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                currentImage = e.target.result;
-                imagePreview.src = currentImage;
-                imagePreview.style.display = 'block';
-                analyzeBtn.disabled = false;
-            };
-            reader.readAsDataURL(file);
-        } else {
-            showError(translations[currentLanguage].noImageError);
-        }
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+        showError(translations[currentLanguage].invalidFileType);
+        return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        imagePreview.src = e.target.result;
+        imagePreview.style.display = 'block';
+        currentImage = e.target.result;
+        analyzeBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
 }
 
-// Analysis handling
+// Analyze button click handler
 analyzeBtn.addEventListener('click', async () => {
     if (!currentImage) {
         showError(translations[currentLanguage].noImageError);
         return;
     }
 
-    const mode = document.querySelector('.mode-btn.active').dataset.mode;
-    document.querySelector('.spinner-container').style.display = 'flex';
-    analyzeBtn.disabled = true;
-
     try {
+        document.querySelector('.spinner-container').style.display = 'flex';
+        analyzeBtn.disabled = true;
+
         const response = await fetch('/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                image: currentImage,
-                mode: mode,
+                image_data: currentImage,
+                mode: currentMode,
                 language: currentLanguage
             })
         });
 
-        if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
+        if (!response.ok) {
+            throw new Error(translations[currentLanguage].errorOccurred);
+        }
 
         const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
         displayResults(data);
         saveToHistory(data);
     } catch (error) {
-        showError(translations[currentLanguage].errorOccurred);
+        showError(error.message || translations[currentLanguage].errorOccurred);
     } finally {
         document.querySelector('.spinner-container').style.display = 'none';
         analyzeBtn.disabled = false;
     }
 });
 
+// Display results
 function displayResults(data) {
     resultsSection.style.display = 'block';
     resultsContainer.innerHTML = '';
@@ -541,38 +551,4 @@ window.addEventListener('scroll', () => {
     }
     
     lastScrollPosition = currentScrollPosition;
-});
-
-// Add image URL input handling
-const imageUrlInput = document.getElementById('imageUrlInput');
-const imageUrlBtn = document.getElementById('imageUrlBtn');
-
-imageUrlBtn.addEventListener('click', () => {
-    const imageUrl = imageUrlInput.value.trim();
-    if (imageUrl) {
-        fetch('/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                image_url: imageUrl,
-                mode: currentMode,
-                language: currentLanguage
-            })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error(translations[currentLanguage].errorOccurred);
-            return response.json();
-        })
-        .then(data => {
-            displayResults(data);
-            saveToHistory(data);
-        })
-        .catch(error => {
-            showError(translations[currentLanguage].errorOccurred);
-        });
-    } else {
-        showError(translations[currentLanguage].noImageError);
-    }
 });
