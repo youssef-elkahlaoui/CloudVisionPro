@@ -10,7 +10,8 @@ The application follows a three-tier architecture:
 - Server Layer: Flask application with REST API endpoints
 - Cloud Layer: Azure services for image processing and monitoring
 
-For detailed architecture visualization, see `architecture.d2`.
+For detailed architecture visualization, see :
+![diagram-export-12-14-2024-9_26_49-PM](https://github.com/user-attachments/assets/9a3ee195-5079-4cc2-99a8-5e2d6392316e)
 
 ## Recent Updates
 - Added support for image URL input
@@ -35,9 +36,6 @@ For detailed architecture visualization, see `architecture.d2`.
   - Clear history functionality
 - Image Upload and URL Input
 - Performance Monitoring
-
-## Architecture
-![diagram-export-12-14-2024-9_26_49-PM](https://github.com/user-attachments/assets/9a3ee195-5079-4cc2-99a8-5e2d6392316e)
 
 ## Prerequisites
 - Python 3.8+
