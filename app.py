@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from deep_translator import GoogleTranslator
 import logging
 import json
-import time  # Add time module for retry logic
+import time
 import requests
 
 # Configure logging
@@ -496,5 +496,4 @@ def clear_history():
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    # Use 0.0.0.0 to allow external connections
     app.run(host='0.0.0.0', port=8101)
