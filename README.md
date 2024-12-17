@@ -36,6 +36,9 @@ For detailed architecture visualization, see `architecture.d2`.
 - Image Upload and URL Input
 - Performance Monitoring
 
+## Architecture
+![diagram-export-12-14-2024-9_26_49-PM](https://github.com/user-attachments/assets/9a3ee195-5079-4cc2-99a8-5e2d6392316e)
+
 ## Prerequisites
 - Python 3.8+
 - Azure account with:
